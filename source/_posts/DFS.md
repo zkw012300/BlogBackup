@@ -208,7 +208,7 @@ function solveMaze(Maze maze, Point start, Point end, Result result):
 	if start == end then 
 		result.add(start)
 		return
-	else if is wall then 
+	else if is not wall then 
 		result.add(start)
 		for Point in {start.North, start.South, start.West, start.East} :
 			solveMaze(maze, start, end, result)
