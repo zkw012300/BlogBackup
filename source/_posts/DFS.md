@@ -8,7 +8,7 @@ tags:
 {% asset_img cover.jpg %}
 
 ## 1. 前言
-上周刷了20来道LeetCode的题，总结出了一些关于深度优先搜索的小小的心得，于是有了这篇博客。这次我先简单介绍一下深度优先搜索，然后在通过几个问题来更深理解深度优先搜索，最后总结一下。
+上周刷了20来道LeetCode的题，总结出了一些关于深度优先搜索的小小的心得，于是有了这篇博客。这次我先简单介绍一下深度优先搜索，然后在通过几个问题来更深理解深度优先搜索，最后总结一下，那我们就开始吧。
 
 <!--more-->
 
@@ -54,7 +54,7 @@ private static void deepFirstSearch(int[][] graph, List<Integer> result, int[] a
     }
 }
 {% endcodeblock %}
-解释一下，for循环对应上面说的扫描，startPoint是当前的起点。如果graph[startVertex][i]不为0，说明有startPoint到i的通路，并且如果节点i并未被访问（访问节点i时accessFlag[i]置1），那就以节点i为起点向下遍历。而if语句是为了检查输入数据是否合法。
+解释一下，for循环对应上面说的扫描，startPoint是当前的起点。如果graph[startVertex][i]不为0，说明有startVertex到i的通路，并且如果节点i并未被访问（访问节点i时accessFlag[i]置1），那就以节点i为起点向下遍历。而if语句是为了检查输入数据是否合法。
 方法已经写好，我们只需要如下调用，就能拿到DFS的结果：
 {% codeblock lang:Java %}
 List<Integer> result = new ArrayList<>();
@@ -65,7 +65,7 @@ deepFirstSearch(graph, result, new int[graph.length], 0);
 
 ## 3. DFS应该怎么用来遍历？
 通过上面的说明，想必已经对DFS有初步的理解了吧。那我们继续吧。
-前面我已经说过，DFS可以看做是一种暴力枚举算法。结合上面的例子，我们可以看到，邻接矩阵graph的所有元素都被DFS算法扫描了一遍，所以至少从这个例子来看DFS是一种暴力枚举算法。
+前面我已经说过，DFS可以看做是一种暴力枚举算法。结合上面的例子，我们可以看到，邻接矩阵graph的所有元素都被DFS算法扫描了一遍，所以至少从这个例子来看DFS是一种暴力枚举算法。我认为确实也是。
 OK，既然我们已经知道DFS可以看做一种暴力枚举算法，我们应该怎么用它来枚举？我想通过分析二叉树的先序遍历过程乃至多叉树的遍历过程，进而推广到一般的情况来说明。
 
 首先定义一下树的数据结构：
@@ -108,7 +108,7 @@ private static void preOrderTraversal(Tree parent) {
 {% endcodeblock %}
 
 那么，为什么要这么写，这段代码背后的思路是什么？
-如果`children.length == 2`那就是二叉树的情形。自然地，如果`children.length`为任意值，那就是任意多叉树的情形，即可以对任意多叉树进行遍历。
+如果`children.length == 2`那就是二叉树的情形。自然地，如果`children.length`为任意值，那就是任意多叉树的情形，即可以对任意多叉树进行遍历。其实思路就是转换成for循环。
 现在，我们看看多叉树的子结构：
 {% asset_img APartOfTree.jpg 多叉树子结构 %}
 这个多叉树的子结构，是一个父节点带着n个子节点(n是任意一个大于0的整数)的结构。我们如何对这个子结构进行遍历？
@@ -158,7 +158,7 @@ void DFS(Graph graph) {
 {% endcodeblock %}
 
 ## 4. 两个问题
-在刷题的过程中，我遇到了两个有意思的问题，都可以用DFS来解决，这里分享一下，分别是迷宫问题和不重复的字符串。
+在刷题的过程中，我遇到了两个很有意思的问题，都可以用DFS来解决，这里分享一下，分别是迷宫问题和不重复字符的字符串。
 
 ### 4.1. 迷宫问题
 长话短说，迷宫问题是这么被描述的（LeetCode上的描述很长，我就不贴了）：
