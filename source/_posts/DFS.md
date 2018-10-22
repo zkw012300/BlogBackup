@@ -60,7 +60,7 @@ private static void deepFirstSearch(int[][] graph, List<Integer> result, int[] a
     }
 }
 {% endcodeblock %}
-解释一下，for循环对应上面所说的扫描，startVertex是当前的起点。如果`graph[startVertex][i]`不为0，说明有从startVertex到i的通路，即`startVertex -> i`，并且如果节点i并未被访问（访问节点i时accessFlag[i]会被置为1），那就以节点i为起点向下遍历；而if语句是为了检查输入数据是否合法。
+解释一下，for循环对应上面所说的扫描，`startVertex`是当前的起点。如果`graph[startVertex][i]`不为0，说明有从startVertex到i的通路，即`startVertex -> i`，并且如果节点i并未被访问（访问节点i时accessFlag[i]会被置为1），那就以节点i为起点向下遍历；而if语句是为了检查输入数据是否合法。
 方法已经写好，我们只需要如下调用，就能拿到DFS的结果：
 {% codeblock lang:Java %}
 List<Integer> result = new ArrayList<>();
