@@ -23,8 +23,8 @@ tags:
 {% asset_img SimpleExample.jpg 简单的例子 %}
 这是一个有向、无环、连通分量为1的图，我们可以用邻接矩阵来存储它：
 {% asset_img AdjacencyMatrix.jpg 邻接矩阵 %}
-这个矩阵的意义是，如果`graph[i][j] == 1`，那么节点i和节点j的关系是`i -> j`。
-我先不放代码，我先跟着DFS的思路来对上面呈现的图，以节点1为起点遍历一次。
+这个矩阵的意义是，如果`graph[i][j] == 1`，那么节点i和节点j的关系是`i -> j`，即有从节点i到节点j的通路。
+我先不放代码，我先跟着DFS的思路来对上面的图，以节点1为起点深度优先遍历一次。
 由于是从节点1开始遍历，因此我们先看看数组graph[0][0...5]，从0到5扫一遍，发现graph[0][1]不为零，说明有节点1到节点2的边。由于DFS是先访问，再以此节点为起点继续向下遍历，所以我们先把节点1，节点2存起来，然后以节点2为起点，向下遍历，如下图：
 {% asset_img SimpleExample_Step1.jpg DFS第一步 %}
 接下来，扫一遍`graph[1][0...5]`，发现`graph[1][2]`不为0，说明节点2连向节点3，则把节点3存起来，然后以节点3为起点，向下遍历：
@@ -60,7 +60,7 @@ private static void deepFirstSearch(int[][] graph, List<Integer> result, int[] a
     }
 }
 {% endcodeblock %}
-解释一下，for循环对应上面说的扫描，startVertex是当前的起点。如果graph[startVertex][i]不为0，说明有startVertex到i的通路，即`startVertex -> i`，并且如果节点i并未被访问（访问节点i时accessFlag[i]会被置为1），那就以节点i为起点向下遍历；而if语句是为了检查输入数据是否合法。
+解释一下，for循环对应上面所说的扫描，startVertex是当前的起点。如果`graph[startVertex][i]`不为0，说明有从startVertex到i的通路，即`startVertex -> i`，并且如果节点i并未被访问（访问节点i时accessFlag[i]会被置为1），那就以节点i为起点向下遍历；而if语句是为了检查输入数据是否合法。
 方法已经写好，我们只需要如下调用，就能拿到DFS的结果：
 {% codeblock lang:Java %}
 List<Integer> result = new ArrayList<>();
@@ -141,7 +141,7 @@ end
 // Input: root of tree
 
 function traversalTree(Tree treeRoot):
-	if treeRoot != null then
+	if treeRoot not null then
 		access(treeRoot)
 		for i in 0 to treeRoot.children.length
 			traversalSubStructure(treeRoot.children[i])
@@ -150,14 +150,14 @@ function traversalTree(Tree treeRoot):
 end
 {% endcodeblock %}
 
-说了那么多，我想表达的是：如果一个节点，它的子节点可以用for循环（或者是while， do...while循环）来枚举的话，那遍历这个图是一件轻轻松松的事。
-更近一步来说，我们可以用递归+一个for循环来实现n重循环进而进行遍历。n重循环天生就适合拿来作为枚举的工具。所以，我们可以把问题写成n重循环的形式，然后再转化成递归，就可以用DFS来解决遍历问题。
+说了那么多，我想表达的是：如果一个节点，它的子节点可以用循环来列举的话，那我们可以用循环+递归的形式来进行遍历这个图。
+更近一步来说，我们可以用递归+一个for循环来实现n重循环，进而进行遍历。n重循环天生就适合拿来作为枚举的工具。所以，我们可以把问题写成n重循环的形式，然后再转化成递归，就可以用DFS来解决遍历问题。
 因此，DFS可以写成如下形式：
 {% codeblock %}
 void DFS(Graph graph) {
 	if(边界条件) {
 	    for(i;循环条件;i++) {
-	    	DFS(graph。child.get(i));
+	    	DFS(graph.child.get(i));
 	    }
 	}
 }
@@ -186,10 +186,10 @@ int[][] maze = {
 
 不妨以上图为例子，起点为(1, 1)，终点为(6, 5)。
 
-如何用DFS的实现来解决迷宫问题？我们走到一个点时（必然的，这个点的值为0），我们可以选择向上、向下、向左或者是向右走；而前面的问题，都是一个父节点带着n个子节点的情形，我们可以照葫芦画瓢，父节点就是当前节点，而子节点就是上、下、左以及右的节点，画成图的话是这样的：
+如何用DFS的实现来解决迷宫问题？我们走到一个点时（必然的，这个点的值为0，即为通路），我们可以选择向上、向下、向左或者是向右走；而前面的问题，都是一个父节点带着n个子节点的情形，我们可以照葫芦画瓢，父节点就是当前节点，而子节点就是上、下、左以及右的节点，画成图的话是这样的：
 {% asset_img FourStep.jpg 子结构 %}
 
-现在问题清晰了，就好解决了，对这个子结构进行遍历，伪代码：
+先对这个子结构进行遍历，伪代码：
 {% codeblock %}
 // Traversal currentPoint and its North, South, West and East Point
 // Input: maze, currentPoint
@@ -205,7 +205,7 @@ end
 1. 遇上墙壁
 2. 遇上终点
 
-所以伪代码：
+所以，对每个子结构遍历的伪代码：
 {% codeblock %}
 // Solve Maze Problem
 // Input: maze, start, end
@@ -223,7 +223,7 @@ function solveMaze(Maze maze, Point start, Point end, Result result):
 end
 {% endcodeblock %}
 
-相应的Java代码：
+因此，相应的Java代码实现有：
 {% codeblock lang:Java %}
 private static Point[] getPoints(Point currentPoint) {
     int currentX = currentPoint.x;
@@ -257,9 +257,9 @@ private static boolean solveMaze(int[][] maze, List<Point> result, Point start, 
     return false;
 }
 {% endcodeblock %}
-其中isValidPoint()会判断是否越界或者遇上墙壁，而hasNotAccess()会判断节点是否被访问过，可以防止`North -> South -> North ...`或者`East -> West -> East ...`的死循环。
+其中isValidPoint()会判断是否越界或者遇上墙壁；而hasNotAccess()会判断节点是否被访问过，这么做可以防止`North -> South -> North ...`或者`East -> West -> East ...`的死循环。
 
-代码的思路就是把所有子节点转换成可以被for循环枚举，然后各个向下遍历，直到遇到终点或者墙壁后回溯。其实，这段DFS代码的可以转换成一个n重循环。
+代码的思路就是把所有子节点转换成可以被for循环枚举，每走一步，以当前节点为父节点继续枚举（即向下遍历），直到遇到终点或者墙壁后回溯。其实，这段DFS代码的可以转换成一个n重循环。
 
 ### 4.2. 不重复的字符的字符串
 其实这题不是LeetCode上的，是我从同学那里听说的。听完题目之后觉得挺有意思的，觉得用DFS可解，然后码了下代码，发现真的可以。
@@ -285,25 +285,25 @@ Example 2:
 为什么我会想到构造一个矩阵出来？原因不难理解。前面我不断的说：`DFS代码可以转换成一个n重循环`。n重循环很好枚举，所以我就构造出一个4\*4的矩阵，每一行都是s
 这样我就能写成如下形式：
 {% codeblock %}
-for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-        for (int m = 0; m < 4; m++) {
-            for (int n = 0; n < 4; n++) {
-                String rs = s.charAt(i) + "" + s.charAt(j) + "" + s.charAt(m) + "" + s.charAt(n);
-            }
-        }
-    }
-}
+for i in 0 ~ 3:
+    for j in 0 ~ 3: 
+        for m in 0 ~ 3: 
+            for n in 0 ~ 3: 
+                rs = s[i] + s[j] + s[m] + s[n]
+            end
+        end
+    end
+end
 {% endcodeblock %}
 
 然后我就可以转成递归的形式：
 {% codeblock %}
-for (int i = 0; i < 4; i++) {
-	DFS(s, i);
-}
+for i in 0 ~ 3: 
+	DFS(s, i)
+end
 {% endcodeblock %}
 
-代码就好写了：
+于是，相应的实现代码就好写了：
 {% codeblock lang:Java %}
 private static void bruteSearch(String[] targetStringMatrix, StringBuilder stringBuilder, List<String> result, int[] accessFlag, int depth) {
     if (depth < targetStringMatrix.length) {
@@ -417,42 +417,14 @@ end
 
 从上面可以看出，DFS本质就是一个n重循环，DFS自然可以用n重循环来表示。
 
-其实，观察每一层，每一层不一样的地方也就只有传的参数的值不同（有点数学归纳法的味道），也能看出这就是一个n重循环。
+其实，观察每一层，每一层不一样的地方也就只有传的参数的值不同，也能看出这就是一个n重循环，有点像数学归纳法的递推。
+还有就是，我上面不断的提`子结构`，其实我个人觉得能写成递归解决的问题，都很像数学中的分形。
 
 ## 6. 总结
 如果一个枚举问题，它的子结构共同组成该问题，就像上面提到的迷宫问题一样，每走一步后，可以上下左右走，这是一个子结构，共同组成原问题，那么这个问题就可以写成n重循环的形式。既然能够写成n重循环的形式，自然就能转化成递归的形式，就能用DFS的思想解决。
 如果一个枚举问题，它的子结构不能组成该问题，那我们就可以转化一下，如果能转化成让它可以由子结构组成，就像上面提到的不重复字符的字符串一样，一维的字符串自然没有子结构能够组成这个问题，那我们就构造一个矩阵，这样我们就能在递归深度为depth时，访问第1，第2 ... 第n个元素，写成n重循环的形式，从而转化成递归进而用DFS的实现解决。
+DFS是解决枚举问题的基础，但不是所有问题都能照搬DFS的代码得到解决，我们需要稍微修改一下才可，比如不重复字符的字符串问题。
 
 
 ## 7. 感想
 在这之前，我对DFS的理解，也仅仅只是对二叉树的遍历。刷了一定量的题，我慢慢发现，只要给初始条件和停止条件，递归可以解决需要多重循环的问题，也就是DFS的实现。所以刷题还是有用的！想要对算法有理解还是要多刷题(不会可以看看Discussion，里面各路大神各种骚操作，都能解决问题)。就这样吧。如果本文有什么问题，请指教，共同进步，谢谢~！
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
