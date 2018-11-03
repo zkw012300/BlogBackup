@@ -3,7 +3,8 @@
 # 部署博客的脚本
 
 rm -rf node_modules/hexo-asset-image
-hexo clean  // clear cache
-hexo g      // generate
+hexo clean  
+hexo g      
 ./backup.sh
-hexo d      // deploy
+cp .travis.yml public
+hexo d      
