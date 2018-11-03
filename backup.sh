@@ -15,6 +15,6 @@ cd $repo_dir
 
 git add -A
 git commit -m "Backup: $cur_dateTime"
-git push -f origin master
+git push origin master
 
 cd /Users/zhangkunwei/Desktop/Hexo
