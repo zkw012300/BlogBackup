@@ -12,6 +12,9 @@ cp -R deploy.sh $repo_dir
 cp -R installAndInit.sh $repo_dir
 cp -R pushToGithubPage.sh $repo_dir
 cd $repo_dir
+
 git add -A
 git commit -m "Backup: $cur_dateTime"
 git push origin master
+
+cd /Users/zhangkunwei/Desktop/Hexo

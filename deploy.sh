@@ -1,5 +1,6 @@
 # !/bin/bash
 # 文件名:deploy.sh
+# 部署并备份
 
 # 部署博客到server
 rm -rf node_modules/hexo-asset-image
