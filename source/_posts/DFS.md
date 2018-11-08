@@ -303,15 +303,19 @@ for i in 0 ~ 3:
 end
 {% endcodeblock %}
 
-于是，相应的实现代码就好写了：
+转换成递归形式，可能就就不大容易看懂了，我们来看看这张图：
+{% asset_img no_repeating_str_i_next_status.jpg 状态转移 %}
+当我们走到了第`i`个字符串时，接下来该往`s1...sn`走，于是我们可以用循环来枚举。
+
+所以，相应的实现代码：
 {% codeblock lang:Java %}
-private static void bruteSearch(String[] targetStringMatrix, StringBuilder stringBuilder, List<String> result, int[] accessFlag, int depth) {
-    if (depth < targetStringMatrix.length) {
-        for (int i = 0; i < targetStringMatrix[depth].length(); i++) {
+private static void bruteSearch(String[] targetCharMatrix, StringBuilder stringBuilder, List<String> result, int[] accessFlag, int depth) {
+    if (depth < targetCharMatrix.length) {
+        for (int i = 0; i < targetCharMatrix[depth].length(); i++) {
             if (accessFlag[i] != 1) {
-                stringBuilder.append(targetStringMatrix[depth].charAt(i));
+                stringBuilder.append(targetCharMatrix[depth].charAt(i));
                 accessFlag[i] = 1;
-                bruteSearch(targetStringMatrix, stringBuilder, result, accessFlag, depth + 1);
+                bruteSearch(targetCharMatrix, stringBuilder, result, accessFlag, depth + 1);
                 accessFlag[i] = 0;
                 stringBuilder.deleteCharAt(stringBuilder.length() - 1);
             }
@@ -323,7 +327,7 @@ private static void bruteSearch(String[] targetStringMatrix, StringBuilder strin
 {% endcodeblock %}
 
 先解释一下参数列表：
-其中targetStringMatrix是根据s构造出来的矩阵；
+其中targetCharMatrix是根据s构造出来的矩阵；
 stringBuilder是用来拼接字符的对象；
 result是用来存放结果的对象；
 accessFlag是存放访问结果，如果第i个元素为0则表示第i个字符还没被访问（拼接），否则如果为1则表明已经被访问（拼接）过；
@@ -331,9 +335,28 @@ depth表示已经拼接字符的个数。
 
 然后就是方法体：
 首先判断是否超过最大深度，即`depth`是否等于4。
-如果小于4：那就遍历`targetStringMatrix[depth][0...3]`。如果`targetStringMatrix[depth][i]`没被访问过，那就把`accessFlag[i]`置1，然后用`stringBuilder`把`targetStringMatrix[depth][i]`拼接进来，然后向下遍历，直至回溯回来后，将访问标志`accessFlag[i]`置0，把`targetStringMatrix[depth][i]`从`stringBuilder`中移除。
+如果小于4：那就遍历`targetCharMatrix[depth][0...3]`。如果`targetCharMatrix[depth][i]`没被访问过，那就把`accessFlag[i]`置1，然后用`stringBuilder`把`targetCharMatrix[depth][i]`拼接进来，然后向下遍历，直至回溯回来后，将访问标志`accessFlag[i]`置0，把`targetCharMatrix[depth][i]`从`stringBuilder`中移除。
 
 否则，如果`depth`等于4：说明此时`stringBuilder.length() == 4`，那就把它加到结果`result`里就ok了。其实还是一个n重循环问题。
+
+其实，直接传一个矩阵(String[] targetCharMatrix)没有必要，因为这个矩阵的每行都一样。我们只需要传一个原字符串(即矩阵的任意一行)，再用depth来控制最大深度(矩阵的行数)就可以了。代码如下：
+{% codeblock lang:Java %}
+private static void bruteSearch(String targetChar, StringBuilder stringBuilder, List<String> result, int[] accessFlag, int depth) {
+    if (depth > 0) {
+        for (int i = 0; i < targetChar.length(); i++) {
+            if (accessFlag[i] != 1) {
+                stringBuilder.append(targetChar.charAt(i));
+                accessFlag[i] = 1;
+                bruteSearch(targetChar, stringBuilder, result, accessFlag, depth - 1);
+                accessFlag[i] = 0;
+                stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+            }
+        }
+    } else {
+        result.add(stringBuilder.toString());
+    }
+}
+{% endcodeblock %}
 
 ## 5. 由两个问题所引发的思考
 上面已经解释了，DFS可以写成n重循环的形式。所以DFS和n重循环有什么关系？
@@ -421,9 +444,9 @@ end
 还有就是，我上面不断的提`子结构`，其实我个人觉得能写成递归解决的问题，都很像数学中的分形。
 
 ## 6. 总结
-如果一个枚举问题，它的子结构共同组成该问题，就像上面提到的迷宫问题一样，每走一步后，可以上下左右走，这是一个子结构，共同组成原问题，那么这个问题就可以写成n重循环的形式。既然能够写成n重循环的形式，自然就能转化成递归的形式，就能用DFS的思想解决。
-如果一个枚举问题，它的子结构不能组成该问题，那我们就可以转化一下，如果能转化成让它可以由子结构组成，就像上面提到的不重复字符的字符串一样，一维的字符串自然没有子结构能够组成这个问题，那我们就构造一个矩阵，这样我们就能在递归深度为depth时，访问第1，第2 ... 第n个元素，写成n重循环的形式，从而转化成递归进而用DFS的实现解决。
-DFS是解决枚举问题的基础，但不是所有问题都能照搬DFS的代码得到解决，我们需要稍微修改一下才可，比如不重复字符的字符串问题。
+1. 如果一个枚举问题，它的子结构共同组成该问题，就像上面提到的迷宫问题一样，每走一步后，可以上下左右走，这是一个子结构，共同组成原问题，那么这个问题就可以写成n重循环的形式。既然能够写成n重循环的形式，自然就能转化成递归的形式，就能用DFS的思想解决。
+2. 如果一个枚举问题，它的子结构不能组成该问题，那我们就可以转化一下，如果能转化成让它可以由子结构组成，就像上面提到的不重复字符的字符串一样，一维的字符串自然没有子结构能够组成这个问题，那我们就构造一个矩阵，这样我们就能在递归深度为depth时，访问第1，第2 ... 第n个元素，写成n重循环的形式，从而转化成递归进而用DFS的实现解决。
+3. DFS是解决枚举问题的基础，但不是所有问题都能照搬DFS的代码得到解决，需要具体情况具体分析。
 
 
 ## 7. 感想
