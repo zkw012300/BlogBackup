@@ -6,7 +6,6 @@ tags:
     - 多线程
 ---
 ![cover](aboutSynchronized/about_synchronized_cover.jpeg)
-{% asset_img about_synchronized_cover.jpeg cover%}
 ## 前言
 Synchronized是Java中的重量级锁，在我刚学Java多线程编程时，我只知道它的实现和monitor有关，但是synchronized和monitor的关系，以及monitor的本质究竟是什么，我并没有尝试理解，而是选择简单的略过。在最近的一段时间，由于实际的需要，我又把这个问题翻出来，Google了很多资料，整个实现的过程总算是弄懂了，为了以防遗忘，便整理成了这篇博客。
 在本篇博客中，我将以class文件为突破口，试图解释Synchronized的实现原理。

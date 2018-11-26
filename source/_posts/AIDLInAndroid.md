@@ -6,7 +6,7 @@ tags:
 	- 多进程
 ---
 
-![cover](AIDLInAndroid/cover.jpg)
+![cover](aidlInAndroid/aidlInAndroid_cover.jpg)
 
 ## 1. 前言
 终于考完试了hhh，终于有时间更新博客了。正好之前自学跨进程编程，写个博文记录一下。
@@ -618,21 +618,3 @@ private void pause() {
 
 ## 7. 总结
 我目前的理解是，在Android跨进程通讯中，一般是序列化+接口+线程切换。只要注意这三点一般没大问题。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

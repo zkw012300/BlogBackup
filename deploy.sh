@@ -3,7 +3,6 @@
 # 部署并备份
 
 # 部署博客到server
-rm -rf node_modules/hexo-asset-image
 hexo clean
 hexo g
 hexo d
