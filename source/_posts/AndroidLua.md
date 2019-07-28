@@ -7,6 +7,8 @@ tags:
 # 0. 前言
 最近一直在写Lua脚本，有时候出了问题，不知道是Lua层的问题，还是上游的问题，不知道从何下手。于是我学习了一点C/C++和JNI的知识，把整个解析Lua脚本包、执行Lua脚本的流程全部都读了一遍。熟悉了一下之后，就萌生了自己封一个Android跑Lua脚本库的想法。于是就有这篇博文。C/C++和Kotlin我都不熟，所以这次我主要用这两种语言来写（所以会很Java-Style hhh）。一路下来，算是了解了JNI编程的一些套路和规范吧。C语言也是查漏补缺。
 
+<!--more-->
+
 # 1. 环境搭建
 首先现在Lua[官网](https://www.lua.org/download.html)下载Lua的源码，我用的是5.3.5版本的。然后把源码导入到Project中，写好CMakeList：
 {% codeblock lang:CMake %}

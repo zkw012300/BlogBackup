@@ -7,6 +7,8 @@ tags:
 # 0. 前言
 最近学习了Lua语言，记录一下自己觉得对几个重要概念的学习过程。
 
+<!--more-->
+
 # 1. Table
 table是Lua语言的一个重要的数据结构。它很像一个Map，我们可以通过给出一个key来获得对应的value。并且，table的key可以是除nil以外的任意类型。看代码：
 {% codeblock lang:Lua %}
