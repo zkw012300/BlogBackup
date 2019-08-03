@@ -4,8 +4,10 @@ date: 2019-07-23 14:41:24
 tags:
 ---
 
+{% asset_img cover.png %}
+
 # 0. 前言
-最近一直在写Lua脚本，有时候出了问题，不知道是Lua层的问题，还是上游的问题，不知道从何下手。于是我学习了一点C/C++和JNI的知识，把整个解析Lua脚本包、执行Lua脚本的流程全部都读了一遍。熟悉了一下之后，就萌生了自己封一个Android跑Lua脚本库的想法。于是就有这篇博文。C/C++和Kotlin我都不熟，所以这次我主要用这两种语言来写（所以会很Java-Style hhh）。一路下来，算是了解了JNI编程的一些套路和规范吧。C语言也是查漏补缺。
+&nbsp;&nbsp;&nbsp;&nbsp;最近一直在写Lua脚本，有时候出了问题，不知道是Lua层的问题，还是上游的问题，不知道从何下手。于是我学习了一点C/C++和JNI，把整个解析Lua脚本包、执行Lua脚本的流程全部都读了一遍。熟悉了一遍之后，就萌生了自己封一个Android跑Lua脚本库的想法。于是就有这篇博文。C/C++和Kotlin我都不熟，所以这次我主要用这两种语言来写（所以会很Java Style）。
 
 <!--more-->
 
@@ -93,76 +95,82 @@ target_link_libraries( # Specifies the target library.
         ${log-lib})
 {% endcodeblock %}
 
-写好CMakeList后，如果要跑的是\*.lua的脚本，那就留下lua.c并删掉luac.c；如果要跑的是\*.luac脚本，那就留下luac.c并删掉lua.c。CMakeList里面也要跟着注释掉。另外，因为我把Lua的源代码导入进来当做一个库，所以也不需要main入口方法了，把lua.c和luac.c里面的main方法删掉。最后Rebuild一下Project，环境就搭好了。
+&nbsp;&nbsp;&nbsp;&nbsp;我要跑是 **\*.lua** 类型的脚本，那就留下**lua.c**并删掉**luac.c**，CMakeList里面也要跟着注释掉。另外，因为我把Lua的源代码导入进来当做一个库，所以也不需要main方法了，把lua.c里面的main方法注释掉。最后Rebuild一下Project就可以了。
 
 # 2. Android单向调用Lua
-先定一个小目标，Android层调用Lua层的函数，Lua层做一个加法后把结果返回给Android层。先写好Lua脚本：
+&nbsp;&nbsp;&nbsp;&nbsp;先定一个小目标，Android层调用Lua层的函数，Lua层做一个加法后把结果返回给Android层。先写好Lua脚本：
 {% codeblock lang:Lua %}
 function test(a, b)
 	return a + b
 end
 {% endcodeblock %}
-这个Lua脚本很简单，把传过来的a和b相加后返回，不需要过多的解释。我们可以开始考虑Native层的实现。在考虑实现之前，需要了解几个概念，是关于Lua虚拟栈和几个Lua C API的。
+&nbsp;&nbsp;&nbsp;&nbsp;这个Lua脚本很简单，把传过来的a和b相加后返回。现在我们可以开始考虑Native层的实现。在考虑实现之前，需要了解Lua虚拟栈和几个Lua C API。
 
 ## 2.1. Lua虚拟栈
-Lua层和Native层的数据交换是通过Lua虚拟栈来完成的。这个虚拟栈和普通的栈略有不同，它可以通过负值索引来访问指定元素。如图：
+&nbsp;&nbsp;&nbsp;&nbsp;Lua层和Native层的数据交换是通过Lua虚拟栈来完成的。这个虚拟栈和普通的栈略有不同，它可以通过负值索引来访问指定元素。如图：
 {% asset_img lua_stack.png Lua虚拟栈 %}
-和普通的栈一样，Lua虚拟栈同样遵循先进后出原则，索引从下往上增加。索引-1代表栈顶，-2代表栈顶下面的元素，以此类推。在图中，索引4和索引-1等价，索引3和索引-2等价，索引2和索引-3等价，索引1和索引-4等价。
+&nbsp;&nbsp;&nbsp;&nbsp;和普通的栈一样，Lua虚拟栈同样遵循先进后出原则，索引从下往上增加。不同的是Lua虚拟栈支持负值索引，使用负值索引可以自栈顶向下索引。
 
 ## 2.2. Lua C APIs
 Lua提供了C APIs，方便Native层和Lua层之间的通讯。下面的Demo会用到这几个C API。
 
-* lua_State \*luaL_newstate (void);
-新建一个Lua的context
+*    lua_State \*luaL_newstate (void);
 
-* int luaL_loadbuffer (lua_State \*L, const char \*buff, size_t sz, const char \*name);
-编译一个Lua chunk，如果编译成功，它会把编译结果包装成一个函数，并把这个函数推入到栈中；否则，编译失败，它会把错误信息推入栈中。
+     新建一个Lua的context。
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| const char \*buff |    需要加载的Lua脚本buffer   |
-| size_t sz |    Lua脚本buffer的长度   |
-| const char \*name |    这个chunk的名称，可空   |
+*    int luaL\_loadbuffer (lua\_State \*L, const char \*buff, size_t sz, const char \*name);
+     
+     编译一个Lua chunk。如果编译成功，它会把编译结果包装成一个函数，并把这个函数推入到栈中；否则，编译失败，它会把错误信息推入栈中。
 
-* int lua_pcall (lua_State \*L, int nargs, int nresults, int errfunc);
-以安全模式调用一个函数，即使抛出异常也不会崩溃。当抛出异常时，如果errfunc为0，Lua虚拟机会把错误信息推入到Lua虚拟栈中，如果errfunc不为0，则错误处理会交由Lua虚拟栈中索引为errfunc的函数处理。执行结束后，Lua虚拟机会把参数以及调用的函数从栈中弹出。
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | buff |    const char\* | 需要加载的Lua脚本buffer   |
+     | sz |    size_t | Lua脚本buffer的长度   |
+     | name |    const char\* | 这个chunk的名称，可空   |
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| int nargs |    需要调用的函数的参数个数   |
-| int nresults |    需要调用的函数的返回结果个数   |
-| int errfunc |    错误处理函数在Lua虚拟栈中的索引，如果为0，错误信息会推入到Lua虚拟栈中   |
+*    int lua\_pcall (lua_State \*L, int nargs, int nresults, int errfunc);
+     
+     以安全模式调用一个函数，即使抛出异常也不会崩溃。当抛出异常时，如果errfunc为0，Lua虚拟机会把错误信息推入到Lua虚拟栈中，如果errfunc不为0，则错误处理会交由Lua虚拟栈中索引为errfunc的函数处理。执行结束后，Lua虚拟机会把参数以及调用的函数从栈中弹出。
 
-* void lua_getglobal (lua_State \*L, const char \*name); 
-获取名字为name的全局变量，并推入栈中。
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | nargs |    int | 需要调用的函数的参数个数   |
+     | nresults |    int | 需要调用的函数的返回结果个数   |
+     | errfunc |    int |  错误处理函数在Lua虚拟栈中的索引，如果为0，错误信息会推入到Lua虚拟栈中   |
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| const char \*name |    变量名称   |
+*    void lua\_getglobal (lua_State \*L, const char \*name);
 
-* void lua_pushinteger (lua_State \*L, lua_Integer n);
-推入一个lua_Integer类型的数据到栈中
+     获取名字为name的全局变量，并推入栈中。
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| lua_Integer n |    需要推入的数字   |  
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | name |    const char\* | 变量名称   |
 
-* lua_Integer lua_tointeger (lua_State \*L, int index); 
-将栈中的索引为index的元素转lua_Integer并返回
+* void lua\_pushinteger (lua\_State \*L, lua_Integer n);
+* 
+     推入一个lua_Integer类型的数据到栈中
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| int index |    指定元素在栈中的索引   | 
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | n |    lua_Integer | 需要推入的数字   |  
 
-除了这些C API，其他的介绍及其用法可以查看官网的[说明](https://www.lua.org/manual/5.1/manual.html#3.7)。
+*    lua\_Integer lua\_tointeger (lua_State \*L, int index); 
+     
+     将栈中的索引为index的元素转lua_Integer并返回
+
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | index |    int | 指定元素在栈中的索引   | 
+
+&nbsp;&nbsp;&nbsp;&nbsp;除了这些C API，其他的介绍及其用法可以查看官网的[说明](https://www.lua.org/manual/5.1/manual.html#3.7)。
 
 
-通过理解Lua虚拟栈和了解一些Lua C API，我们就可以实现一个简单的Native层调用Lua层函数的功能。
+&nbsp;&nbsp;&nbsp;&nbsp;通过理解Lua虚拟栈和了解一些Lua C API，我们就可以实现一个简单的Native层调用Lua层函数的功能。
 {% codeblock lang:C %}
 jint startScript(JNIEnv* env, jobject obj, jstring jLuaStr, jint a, jint b) {
 	// 创建一个lua context
@@ -209,11 +217,12 @@ jint startScript(JNIEnv* env, jobject obj, jstring jLuaStr, jint a, jint b) {
 	}
 }
 {% endcodeblock %}
-流程如注释。在这一个过程中，Lua虚拟栈的内容变化如图，从luaL_loadbuffer开始：
-{% asset_img lua_stack_content_change.png %}
-首先，经过luaL_loadbuffer之后，luaL_loadbuffer会把传过来的\*.lua文件的buffer作为一个Lua Chunk，接着编译它后，把编译结果包装成一个function并推入Lua虚拟栈中。经过lua_pcall后，lua_pcall把所执行的function及其参数从Lua虚拟栈中弹出。接着，通过lua_getglobal获取Lua层的全局变量「test」，lua_getglobal会把这个变量的值推入Lua虚拟栈中。函数已经准备好，还差参数。经过lua_pushinteger(a)和lua_pushinteger(b)后，函数和参数都已经顺序推入了，调用lua_pcall的先决条件已经满足。接下来调用lua_pcall后，Lua虚拟机会根据调用lua_pcall是传入的nresults，将结果推入Lua虚拟栈中。最后，我们只需要lua_tointeger(index)来获取执行结果，返回给Android层即可。可以看到，自始至终，Lua虚拟栈充当一个数据交换的桥梁，是一个十分重要的角色。
 
-接下来，只需要在Native层Register一下NativeMethods，并在Android层声明一下native方法就可以使用了。
+&nbsp;&nbsp;&nbsp;&nbsp;流程如注释。在这一个过程中，Lua虚拟栈的内容变化如图，从**luaL_loadbuffer**开始：
+{% asset_img lua_stack_content_change.png %}
+&nbsp;&nbsp;&nbsp;&nbsp;首先，经过luaL\_loadbuffer之后，luaL\_loadbuffer会把传过来的\*.lua文件的buffer作为一个Lua Chunk，接着编译它。编译完后，把编译结果包装成一个function并推入Lua虚拟栈中。经过lua\_pcall后，Lua虚拟机会把所执行的function及其参数从Lua虚拟栈中弹出。接着，通过lua\_getglobal获取Lua层的全局变量「test」，lua\_getglobal会把这个变量的值推入Lua虚拟栈中。函数已经准备好，再经过lua\_pushinteger(a)和lua\_pushinteger(b)后，函数和参数都已经顺序推入了，调用lua\_pcall的先决条件已经满足。接下来，调用lua\_pcall后，Lua虚拟机会根据调用lua\_pcall是传入的nresults，将结果推入Lua虚拟栈中。最后，我们只需要lua_tointeger(index)来获取执行结果，返回给Android层即可。可以看到，自始至终，Lua虚拟栈充当一个数据交换的桥梁，是一个十分重要的角色。
+
+&nbsp;&nbsp;&nbsp;&nbsp;接下来，只需要在Native层Register一下NativeMethods，并在Android层声明一下native方法就可以使用了。
 {% codeblock lang:Kotlin %}
 class LuaExecutor {
     init {
@@ -224,32 +233,35 @@ class LuaExecutor {
 }
 {% endcodeblock %}
 
-然而，上面的实现只有启动脚本的功能。在实际中，我们总不可能启动脚本之后，就没有对脚本执行流程有一点控制吧。因此有必要加一个停止脚本的功能。如何停止正在执行的脚本？先来看看Lua提供的C API：
-* int luaL_error (lua_State \*L, const char \*fmt, ...);
-抛出一个异常，错误信息为fmt。
+&nbsp;&nbsp;&nbsp;&nbsp;然而，上面的实现只有启动脚本的功能。在实际中，我们总不可能启动脚本之后，就没有对脚本执行流程有一点控制吧。因此有必要加一个停止脚本的功能。如何停止正在执行的脚本？先来看看Lua提供的C API：
+* int luaL\_error (lua\_State \*L, const char \*fmt, ...);
+     
+     抛出一个异常，错误信息为fmt。
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| const char \*fmt |    错误信息   |
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | fmt |    const char\* | 错误信息   |
 
-* int lua_sethook (lua_State \*L, lua_Hook f, int mask, int count);
-设置一个钩子函数。
+*    int lua\_sethook (lua\_State \*L, lua\_Hook f, int mask, int count);
 
-| 参数   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| lua_Hook f |    钩子函数，包含需要执行的语句   | 
-| int mask |    指定被调用的时机，它的取值为常量LUA_MASKCALL，LUA_MASKRET，LUA_MASKLINE和LUA_MASKCOUNT的按位或。   | 
+     设置一个钩子函数。
 
-| mask取值   |      说明      |
-|----------|-------------|
-| LUA_MASKCALL |  代表钩子函数f会在进入任意函数后执行 |
-| LUA_MASKRET |    代表钩子函数在退出任意函数前执行   | 
-| LUA_MASKLINE |    代表钩子函数f会在执行函数内一行代码前执行   | 
-| LUA_MASKCOUNT |    代表钩子函数f会在lua解释器执行了count条指令后执行   | 
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | f |    lua_Hook | 钩子函数，包含需要执行的语句   | 
+     | mask |    int | 指定被调用的时机，取值为常量LUA_MASKCALL，LUA_MASKRET，LUA_MASKLINE和LUA_MASKCOUNT的按位或。   | 
 
-有了这两个C API，脚本的停止功能就可以实现了：
+     | mask取值   |      说明      |
+     |:----------:|-------------|
+     | LUA_MASKCALL |  代表钩子函数f会在进入任意函数后执行 |
+     | LUA_MASKRET |    代表钩子函数在退出任意函数前执行   | 
+     | LUA_MASKLINE |    代表钩子函数f会在执行函数内一行代码前执行   | 
+     | LUA_MASKCOUNT |    代表钩子函数f会在lua解释器执行了count条指令后执行   | 
+
+&nbsp;&nbsp;&nbsp;&nbsp;有了这两个C API，脚本的停止功能就可以实现了：
+
 {% codeblock lang:C %}
 void stopLuaHooker(lua_State *L, lua_Debug *ar) {
     luaL_error(L, "quit Lua");
@@ -261,7 +273,7 @@ void forceStopLua(lua_State *L) {
 }
 {% endcodeblock %}
 
-当我们调用forceStopLua时，会为Lua脚本的执行设置一个钩子函数，这个钩子函数的执行时机是：lua_sethook执行之后，Lua解释器执行完一条指令时。也就是说，我们在Lua层代码执行到任意地方时调用forceStopLua后，Lua解释器会在执行完一条指令后，接着执行stopLuaHooker，进而执行lua_error，抛出异常，脚本即终止。因此，脚本的启动和停止的功能已经实现好了，封到一个类里，叫做LuaEngine：
+&nbsp;&nbsp;&nbsp;&nbsp;当我们调用forceStopLua时，会为Lua脚本的执行设置一个钩子函数，这个钩子函数的执行时机是：lua\_sethook执行之后，Lua解释器执行完一条指令时。也就是说，我们在Lua层代码执行到任意地方时调用forceStopLua后，Lua解释器会在执行完一条指令后，接着执行stopLuaHooker，进而执行lua_error，抛出异常，脚本即终止。因此，脚本的启动和停止的功能已经实现好了，封到一个类里，叫做LuaEngine：
 {% codeblock lang:C LuaEngine.h %}
 #ifndef ANDROIDLUA_LUAENGINE_H
 #define ANDROIDLUA_LUAENGINE_H
@@ -404,17 +416,18 @@ void quitLuaThreadHooker(lua_State *L, lua_Debug *ar) {
 {% endcodeblock %}
 
 # 3. Lua单向调用Android
-前面的实现，只允许Android层调用Lua的方法，而Lua层并不能调用Android层的方法。可不可以在Lua层调用Android层的方法？答案是可以的。一个思路是，Lua层调用Native层的方法，Native层再通过反射调用Android层的方法。先看看Lua层是怎么调用Native层的方法。Lua提供了一个C API：lua_register，它的原型是：
-* void lua_register (lua_State \*L, const char \*name, lua_CFunction f);
-注册一个CFunction
+&nbsp;&nbsp;&nbsp;&nbsp;前面的实现，只允许Android层调用Lua的方法，而Lua层并不能调用Android层的方法。可不可以在Lua层调用Android层的方法？答案是可以的。一个思路是，Lua层调用Native层的方法，Native层再通过反射调用Android层的方法。先看看Lua层是怎么调用Native层的方法。Lua提供了一个C API：lua_register，它的原型是：
+* void lua\_register (lua\_State \*L, const char \*name, lua\_CFunction f);
 
-| mask取值   |      说明      |
-|----------|-------------|
-| lua_State \*L |  Lua的context |
-| const char \*name |    Lua层全局变量的名称  | 
-| lua_CFunction f |    C函数。原型是：int functionXXX(lua_State\* L);其返回值的意义代表返回结果的个数。   | 
+     注册一个CFunction。
 
-我们可以用这个C API实现Lua层调用Native层的方法：
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | L |  lua_State\* | Lua的context |
+     | name |    const char\* | Lua层全局变量的名称  | 
+     | f |    lua_CFunction | C函数。原型是：int functionXXX(lua_State\* L);其返回值的意义代表返回结果的个数。   | 
+
+&nbsp;&nbsp;&nbsp;&nbsp;我们可以用这个C API实现Lua层调用Native层的方法：
 {% codeblock lang:C %}
 lua_register(mScriptContext, "getString" , getString);
 
@@ -425,9 +438,9 @@ int getString(lua_State *L) {
 }
 {% endcodeblock %}
 
-上面的代码很简单，先注册一个名字为getString的全局变量，指向C函数getString，C函数getString中，先声明并分配一个字符串cStr，再把这个字符串推入到Lua栈中，并返回结果个数。因此，在Lua层，如果执行getString()，则会得到字符串"String From C Layer"，Lua层就可以调用Native层的方法了。
+&nbsp;&nbsp;&nbsp;&nbsp;上面的代码很简单，先注册一个名字为getString的全局变量，指向C函数getString。C函数getString中，先声明并分配一个字符串cStr，再把这个字符串推入到Lua栈中，并返回结果个数。因此，在Lua层，如果执行getString()，则会得到字符串"String From C Layer"，Lua层就可以调用Native层的方法了。
 
-然后看看Native层调用Android层的方法。代码如下：
+&nbsp;&nbsp;&nbsp;&nbsp;然后看看Native层调用Android层的方法。代码如下：
 {% codeblock lang:C %}
 int getString(lua_State *L) {
 	JNIEnv* env;
@@ -454,9 +467,9 @@ int getString(lua_State *L) {
     return 1;
 }
 {% endcodeblock %}
-解释一下，首先通过在JNI_OnLoad保存下来的JavaVM指针指针获得Jni的环境变量，再用Jni的环境变量找到class和method，最后通过env、class和method反射调用Android层的方法获得返回的jstring，转成C-style的string后推入lua栈中，释放资源，并返回结果个数。
+&nbsp;&nbsp;&nbsp;&nbsp;解释一下，首先通过在JNI_OnLoad保存下来的JavaVM指针指针获得Jni的环境变量，再用Jni的环境变量找到class和method，最后通过env、class和method反射调用Android层的方法获得返回的jstring，转成C-style的string后推入lua栈中，释放资源，并返回结果个数。
 
-在Android层，留下一个方法以供调用：
+&nbsp;&nbsp;&nbsp;&nbsp;在Android层，留下一个方法以供调用：
 {% codeblock lang:Kotlin %}
 @Keep
 object ShellBridge {
@@ -473,21 +486,21 @@ object ShellBridge {
 至此，Android层与Lua层的交互已经实现了。
 
 # 4. 避免ANR
-然而上面的实现可能会导致ANR，原因是Lua脚本的执行可能是耗时的。如果Lua脚本的执行时间超过5秒，必然ANR。一个解决方法是，把Lua脚本的执行放到子线程当中。这个子线程应当给Native层管理比较好，还是Android层管理比较好？我个人觉得放在Native层比较好，这样Android层就不需要专为执行Lua脚本而新建和管理线程，代码就不会太复杂；即使Native层的逻辑比较复杂，编好了so，一般就会当做一个库来使用，而不会去动它。所以，还是在Native层创建和管理线程。
+&nbsp;&nbsp;&nbsp;&nbsp;然而上面的实现可能会导致ANR，原因在于Lua脚本的执行可能是耗时的。如果Lua脚本的执行时间超过5秒，必然ANR。一个解决方法是，把Lua脚本的执行放到子线程当中。这个子线程应当给Native层管理比较好，还是Android层管理比较好？我个人觉得放在Native层比较好，这样Android层就不需要专为执行Lua脚本而新建和管理线程，代码就不会太复杂；即使Native层的逻辑比较复杂，编好了so，一般就会当做一个库来使用，而不会去动它。所以，还是在Native层创建和管理线程。
 pthread_create是Unix、Linux等系统创建线程的函数，它的原型是：
-* int pthread_create(pthread_t \*restrict tidp, const pthread_attr_t \*restrict attr, void \*(\*start_rtn)(void \*), void \*restrict arg);
+* int pthread\_create(pthread\_t \*restrict tidp, const pthread\_attr\_t \*restrict attr, void \*(\*start_rtn)(void \*), void \*restrict arg);
+     
+     | 参数   | 类型 |      说明      |
+     |:----------:|:----------:|-------------|
+     | tidp |  pthread_t \*restrict | 线程ID |
+     | attr |    const pthread_attr_t\*restrict | 线程属性，默认为NULL  | 
+     | \*(\*start_rtn)(void \*) |    void | 运行在新线程的函数   |
+     | \*restrict arg |  void | start_rtn的所需参数 | 
 
-| 参数   |      说明      |
-|----------|-------------|
-| pthread_t \*restrict tidp |  线程ID |
-| const pthread_attr_t \*restrict attr |    线程属性，默认为NULL  | 
-| void \*(\*start_rtn)(void \*) |    运行在新线程的函数   |
-| void \*restrict arg |  start_rtn的所需参数 | 
-
-因此，我们可以把执行Lua脚本的逻辑移到新线程中：
+&nbsp;&nbsp;&nbsp;&nbsp;因此，我们可以把执行Lua脚本的逻辑移到新线程中：
 {% codeblock lang:C %}
 void startWork() {
-    pthread_create(&mThreadId, NULL, &LuaTask::startWorkInner, (void*)this);
+    pthread_create(&mThreadId, NULL, &startWorkInner, (void*)this);
 }
 
 void stopWork() {
@@ -501,7 +514,7 @@ void* startWorkInner(void *args) {
 }
 {% endcodeblock %}
 
-这样，startScript()就运行在新线程中，就不会有ANR的风险。我们把它封到一个类中，叫LuaTask，一次Lua脚本的开始与结束，都由这个类来管理。
+&nbsp;&nbsp;&nbsp;&nbsp;这样，startScript()就运行在新线程中，就不会有ANR的风险。我们把它封到一个类中，叫LuaTask，一次Lua脚本的开始与结束，都由这个类来管理。
 {% codeblock lang:C LuaTask.h %}
 #ifndef ANDROIDLUA_LUATASK_H
 #define ANDROIDLUA_LUATASK_H
@@ -570,7 +583,7 @@ bool LuaTask::isRunning() {
 }
 {% endcodeblock %}
 
-但是，因为这是我们新创建的线程，没有attach到JavaVM。如果没有attach到JavaVM，就会找不到JNIEnv，所以必须要attach到JavaVM，这样才能拿到JavaVM的JNI环境变量，从而可以调用到Android层的方法。因此startWorkInner要改进一下：
+&nbsp;&nbsp;&nbsp;&nbsp;但是，这是我们新创建的线程，还没有attach到JavaVM。如果没有attach到JavaVM，就会找不到JNIEnv，所以必须要attach到JavaVM，这样才能拿到JavaVM的JNI环境变量，从而可以调用到Android层的方法。因此startWorkInner要改进一下：
 {% codeblock lang:C %}
 void* startWorkInner(void *args) {
     JNIEnv* env = nullptr;
@@ -581,10 +594,10 @@ void* startWorkInner(void *args) {
     return nullptr;
 }
 {% endcodeblock %}
-线程退出之前，记得要和JavaVM detach一下，这样线程才能正常退出。
+&nbsp;&nbsp;&nbsp;&nbsp;线程退出之前，记得要和JavaVM detach一下，这样线程才能正常退出。
 
 # 5. 运行脚本包
-至此，我们完成了能够随时开始、停止，出错能打印堆栈信息的执行Lua脚本功能。但实际上，我们不可能只跑单个脚本，并且脚本可能需要一些资源文件。因此我们一般会把脚本和资源文件打包成一个脚本包。在运行脚本之前，先解包，把脚本解析出来后再运行。
+&nbsp;&nbsp;&nbsp;&nbsp;至此，我们完成了能够随时开始、停止，出错能打印堆栈信息的执行Lua脚本功能。但实际上，我们不可能只跑单个脚本，并且脚本可能需要一些资源文件。因此我们一般会把脚本和资源文件打包成一个脚本包。在运行脚本之前，先解包，把脚本解析出来后再运行。
 所以这个解析脚本的逻辑放在Native层还是Android层？我个人觉得放在Android层比较好。有两点原因：
 1. 脚本包格式不确定，Native层不可能为每种情况进行适配，既然如此那就交由使用者来解析。
 2. 单一职责的原则，Native层负责还是只负责一种功能比较好。而且为解析脚本包而重新编译一个so文件又太小题大做，所以解析的任务就交给使用者吧。
@@ -645,7 +658,7 @@ object FileUtils {
 }
 ```
 
-至此，我们在原有功能的基础上，增加了跑脚本包的功能。完整的代码可以看[这里](https://github.com/zkw012300/AndroidLua)。
+&nbsp;&nbsp;&nbsp;&nbsp;至此，我们在原有功能的基础上，增加了跑脚本包的功能。完整的代码可以看[这里](https://github.com/zkw012300/AndroidLua)。
 
 # 6. 总结
 {% asset_img Android_call_lua.png %}
@@ -653,7 +666,7 @@ object FileUtils {
 {% asset_img lua_call_android.png %}
 
 # 7. 感想
-Android跑Lua脚本这个过程其实是很简单的，不是主要难点。这次主要卡住的地方是在JNI部分。我发现我所了解的C语言语法太古老了，跟不上现在的C语言。虽然我的C语言的代码量也不多，加上我对JNI的一些编程规范不太了解，一路磕磕绊绊，但是总算是写出来了。Kotlin和C/C++还是要多熟悉熟悉，多练练。
+&nbsp;&nbsp;&nbsp;&nbsp;Android跑Lua脚本这个过程其实是很简单的，不是主要难点。这次主要卡住的地方是在JNI部分，因为我发现我所了解的C语言语法太古老了，跟不上现在的C语言。虽然我的C语言的代码量也不多，加上我对JNI的一些编程规范不太了解，所以一路磕磕绊绊，但是总算是写出来了。Kotlin和C/C++还是要多熟悉熟悉，多练练。
 
 
 
