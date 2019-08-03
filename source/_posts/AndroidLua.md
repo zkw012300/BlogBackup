@@ -4,7 +4,7 @@ date: 2019-07-23 14:41:24
 tags:
 ---
 
-{% asset_img cover.png %}
+{% asset_img cover.jpg %}
 
 # 0. 前言
 &nbsp;&nbsp;&nbsp;&nbsp;最近一直在写Lua脚本，有时候出了问题，不知道是Lua层的问题，还是上游的问题，不知道从何下手。于是我学习了一点C/C++和JNI，把整个解析Lua脚本包、执行Lua脚本的流程全部都读了一遍。熟悉了一遍之后，就萌生了自己封一个Android跑Lua脚本库的想法。于是就有这篇博文。C/C++和Kotlin我都不熟，所以这次我主要用这两种语言来写（所以会很Java Style）。
