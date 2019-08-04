@@ -8,8 +8,8 @@ hexo g
 hexo d
 
 # 部署博客到Github Page
-chmod 777 pushToGithubPage.sh
-./pushToGithubPage.sh  
+#chmod 777 pushToGithubPage.sh
+#./pushToGithubPage.sh  
 
 # 备份脚本&文件夹source
 chmod 777 backup.sh 
